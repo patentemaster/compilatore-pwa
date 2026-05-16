@@ -1,0 +1,9 @@
+{
+  "appId": "com.example.app",
+  "appName": "NomeApp",
+  "webDir": "www",
+  "server": {
+    "url": "",
+    "cleartext": true
+  }
+}
