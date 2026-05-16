@@ -1,4 +1,4 @@
-name: Compilatore Cloud PWA
+name: Compilatore Cloud PWA Professionale
 on:
   repository_dispatch:
     types: [avvia_compilazione]
@@ -12,22 +12,44 @@ jobs:
       with:
         node-version: '20'
 
-    - name: Installa Java e Android
+    - name: Installa Java e Android SDK
       uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
         java-version: '17'
 
-    - name: Installa lo strumento di Google
+    - name: Installa Bubblewrap CLI di Google
       run: npm install -g @bubblewrap/cli
 
-    - name: Crea pacchetto Android
+    - name: Configura Parametri e Genera Chiave Digitale
       run: |
         URL_PWA="${{ github.event.client_payload.url_pwa }}"
-        bubblewrap init --manifest=$URL_PWA/manifest.json --no-interactive
-        bubblewrap build --skipSigning=true
+        APP_NAME="${{ github.event.client_payload.app_name }}"
+        PACKAGE_ID="${{ github.event.client_payload.package_id }}"
+        PASS_KEY="${{ github.event.client_payload.keystore_password }}"
         
-    - name: Rendi il file scaricabile
+        # 1. Inizializza il progetto in modo automatico usando i dati reali
+        bubblewrap init --manifest=$URL_PWA/manifest.json --no-interactive
+
+        # 2. Crea al volo un file di firma digitale .keystore reale usando lo strumento ufficiale di Java (keytool)
+        keytool -genkeypair -v \
+          -keystore android.keystore \
+          -alias androidkey \
+          -keyalg RSA \
+          -keysize 2048 \
+          -validity 10000 \
+          -storepass "$PASS_KEY" \
+          -keypass "$PASS_KEY" \
+          -dname "CN=$APP_NAME, OU=Mobile, O=Base44Compiler, L=Roma, S=Italia, C=IT"
+
+    - name: Compila il Pacchetto .AAB Firmato
+      run: |
+        PASS_KEY="${{ github.event.client_payload.keystore_password }}"
+        
+        # Compila il file finale inserendo la password decisa dall'utente su Base44
+        bubblewrap build --signingKeyPath=android.keystore --signingKeyAlias=androidkey --signingKeyPassword="$PASS_KEY" --signingStorePassword="$PASS_KEY"
+
+    - name: Rendi il file .AAB scaricabile su Base44
       uses: actions/upload-artifact@v4
       with:
         name: applicazione-playstore
