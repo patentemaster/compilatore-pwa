@@ -28,8 +28,13 @@ jobs:
         PACKAGE_ID="${{ github.event.client_payload.package_id }}"
         PASS_KEY="${{ github.event.client_payload.keystore_password }}"
         
-        # Accetta in automatico i componenti inserendo 'yes "" |' prima del comando
-        yes "" | bubblewrap init --manifest=$URL_PWA/manifest.json --no-interactive --packageName="$PACKAGE_ID" --appName="$APP_NAME"
+        # Sblocco definitivo: creiamo a forza il file di configurazione interna di Bubblewrap
+        # Inseriamo i percorsi esatti di Java (JDK) e dell'Android SDK di GitHub Actions per evitare le domande
+        mkdir -p ~/.bubblewrap
+        echo "{\"jdkPath\":\"${JAVA_HOME}\",\"androidSdkPath\":\"/usr/local/lib/android/sdk\"}" > ~/.bubblewrap/config.json
+        
+        # Ora inizializziamo senza il rischio che chieda l'installazione del JDK
+        bubblewrap init --manifest=$URL_PWA/manifest.json --no-interactive --packageName="$PACKAGE_ID" --appName="$APP_NAME"
 
         # Crea la chiave digitale reale nativa Android
         keytool -genkeypair -v \
@@ -45,7 +50,7 @@ jobs:
     - name: Compila il Pacchetto .AAB Firmato
       run: |
         PASS_KEY="${{ github.event.client_payload.keystore_password }}"
-        yes "" | bubblewrap build --signingKeyPath=android.keystore --signingKeyAlias=androidkey --signingKeyPassword="$PASS_KEY" --signingStorePassword="$PASS_KEY"
+        bubblewrap build --signingKeyPath=android.keystore --signingKeyAlias=androidkey --signingKeyPassword="$PASS_KEY" --signingStorePassword="$PASS_KEY"
 
     - name: Rendi il file .AAB scaricabile su Base44
       uses: actions/upload-artifact@v4
