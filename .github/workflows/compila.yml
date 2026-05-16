@@ -28,10 +28,10 @@ jobs:
         PACKAGE_ID="${{ github.event.client_payload.package_id }}"
         PASS_KEY="${{ github.event.client_payload.keystore_password }}"
         
-        # 1. Inizializza il progetto in modo automatico usando i dati reali
-        bubblewrap init --manifest=$URL_PWA/manifest.json --no-interactive
+        # Accetta in automatico i componenti inserendo 'yes "" |' prima del comando
+        yes "" | bubblewrap init --manifest=$URL_PWA/manifest.json --no-interactive --packageName="$PACKAGE_ID" --appName="$APP_NAME"
 
-        # 2. Crea al volo un file di firma digitale .keystore reale usando lo strumento ufficiale di Java (keytool)
+        # Crea la chiave digitale reale nativa Android
         keytool -genkeypair -v \
           -keystore android.keystore \
           -alias androidkey \
@@ -45,9 +45,7 @@ jobs:
     - name: Compila il Pacchetto .AAB Firmato
       run: |
         PASS_KEY="${{ github.event.client_payload.keystore_password }}"
-        
-        # Compila il file finale inserendo la password decisa dall'utente su Base44
-        bubblewrap build --signingKeyPath=android.keystore --signingKeyAlias=androidkey --signingKeyPassword="$PASS_KEY" --signingStorePassword="$PASS_KEY"
+        yes "" | bubblewrap build --signingKeyPath=android.keystore --signingKeyAlias=androidkey --signingKeyPassword="$PASS_KEY" --signingStorePassword="$PASS_KEY"
 
     - name: Rendi il file .AAB scaricabile su Base44
       uses: actions/upload-artifact@v4
