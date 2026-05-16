@@ -32,13 +32,26 @@ jobs:
         mkdir -p ~/.bubblewrap
         echo "{\"jdkPath\":\"${JAVA_HOME}\",\"androidSdkPath\":\"/usr/local/lib/android/sdk\"}" > ~/.bubblewrap/config.json
         
-        # 2. BYPASS DEI COOKIE DI WIX: Scarichiamo il manifest localmente per evitare il crash di Bubblewrap
+        # 2. Scarichiamo il vero manifest della PWA
         curl -sL "$URL_PWA/manifest.json" -o manifest.json
         
-        # 3. Inizializziamo il progetto partendo dal file locale salvato sul disco
-        yes "" | bubblewrap init --manifest=manifest.json --no-interactive --packageName="$PACKAGE_ID" --appName="$APP_NAME"
+        # 3. CREAZIONE MICRO SERVER LOCALE ANTI-CORS E ANTI-WIX COOKIE
+        node -e "
+        const http = require('http');
+        const fs = require('fs');
+        http.createServer((req, res) => {
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(fs.readFileSync('manifest.json'));
+        }).listen(8080);
+        " &
+        
+        # Attendiamo un secondo che il server locale si accenda
+        sleep 2
+        
+        # 4. Inizializziamo Bubblewrap puntando al server locale finto (Bypass totale dei blocchi)
+        yes "" | bubblewrap init --manifest=http://localhost:8080/manifest.json --no-interactive --packageName="$PACKAGE_ID" --appName="$APP_NAME"
 
-        # 4. Crea la chiave digitale reale nativa Android
+        # 5. Crea la chiave digitale reale nativa Android
         keytool -genkeypair -v \
           -keystore android.keystore \
           -alias androidkey \
