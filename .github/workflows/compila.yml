@@ -1,0 +1,34 @@
+name: Compilatore Cloud PWA
+on:
+  repository_dispatch:
+    types: [avvia_compilazione]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Configura Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Installa Java e Android
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: Installa lo strumento di Google
+      run: npm install -g @bubblewrap/cli
+
+    - name: Crea pacchetto Android
+      run: |
+        URL_PWA="${{ github.event.client_payload.url_pwa }}"
+        bubblewrap init --manifest=$URL_PWA/manifest.json --no-interactive
+        bubblewrap build --skipSigning=true
+        
+    - name: Rendi il file scaricabile
+      uses: actions/upload-artifact@v4
+      with:
+        name: applicazione-playstore
+        path: ./*.aab
